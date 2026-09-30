@@ -1,252 +1,176 @@
-<div align="center">
-  <h1>⚡ multi_agent</h1>
-  <p>AI Agent powered by <a href="https://voltagent.dev">VoltAgent</a></p>
-  
-  <p>
-    <a href="https://github.com/voltagent/voltagent"><img src="https://img.shields.io/badge/built%20with-VoltAgent-blue" alt="Built with VoltAgent" /></a>
-    <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen" alt="Node Version" /></a>
-  </p>
-</div>
+# multi_agent
 
-## 🚀 Quick Start
+A multi-agent research system built with [VoltAgent](https://voltagent.dev). You give a supervisor agent a topic. It hands the work to three specialist sub-agents (a researcher, an analyst and a writer) and returns a finished report.
 
-### Prerequisites
+This is a learning project for three things: VoltAgent, multi-agent systems and the supervisor pattern.
 
-- Node.js 20+ 
-- Git
-- Google API Key (optional - can configure later)
-  - Get your key at: https://aistudio.google.com/app/apikey
-
-### Installation
-
-```bash
-# Clone the repository (if not created via create-voltagent-app)
-git clone <your-repo-url>
-cd multi_agent
-
-# Install dependencies
-npm install
-
-# Copy environment variables
-cp .env.example .env
-```
-
-### Configuration
-
-Edit `.env` file with your API keys:
-
-```env
-GOOGLE_GENERATIVE_AI_API_KEY=your-api-key-here
-
-# VoltOps Platform (Optional)
-# Get your keys at https://console.voltagent.dev/tracing-setup
-# VOLTAGENT_PUBLIC_KEY=your-public-key
-# VOLTAGENT_SECRET_KEY=your-secret-key
-```
-
-### Running the Application
-
-```bash
-# Development mode (with hot reload)
-npm run dev
-
-# Production build
-npm run build
-
-# Start production server
-npm start
-```
-
-## 🎯 Features
-
-This VoltAgent application includes:
-
-- **AI Agent**: Powered by Google (Gemini 2.0 Flash)
-- **Workflows**: Pre-configured expense approval workflow
-- **Memory**: Built-in conversation history
-- **Tools**: Extensible tool system
-- **Server**: Elysia
-- **Type Safety**: Full TypeScript support
-
-## 🔍 VoltOps Platform
-
-### Local Development
-The VoltOps Platform provides real-time observability for your agents during development:
-
-1. **Start your agent**: Run `npm run dev`
-2. **Open console**: Visit [console.voltagent.dev](https://console.voltagent.dev)
-3. **Auto-connect**: The console connects to your local agent at `http://localhost:3141`
-
-Features:
-- 🔍 Real-time execution visualization
-- 🐛 Step-by-step debugging
-- 📊 Performance insights
-- 💾 No data leaves your machine
-
-### Production Monitoring
-For production environments, configure VoltOpsClient:
-
-1. **Create a project**: Sign up at [console.voltagent.dev/tracing-setup](https://console.voltagent.dev/tracing-setup)
-2. **Get your keys**: Copy your Public and Secret keys
-3. **Add to .env**:
-   ```env
-   VOLTAGENT_PUBLIC_KEY=your-public-key
-   VOLTAGENT_SECRET_KEY=your-secret-key
-   ```
-4. **Configure in code**: The template already includes VoltOpsClient setup!
-
-## 📁 Project Structure
+## How it works
 
 ```
-multi_agent/
-├── src/
-│   ├── index.ts          # Main agent configuration
-│   ├── tools/            # Custom tools
-│   │   ├── index.ts      # Tool exports
-│   │   └── weather.ts    # Weather tool example
-│   └── workflows/        # Workflow definitions
-│       └── index.ts      # Expense approval workflow
-├── dist/                 # Compiled output (after build)
-├── .env                  # Environment variables
-├── .voltagent/           # Agent memory storage
-├── Dockerfile            # Production deployment
-├── package.json
-└── tsconfig.json
+                    User request
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │  supervisor   │  plans the work and delegates it;
+                 └───────┬───────┘  never researches or writes itself
+                         │ delegate_task
+        ┌────────────────┼────────────────┐
+        ▼                ▼                ▼
+ ┌────────────┐   ┌────────────┐   ┌────────────┐
+ │  searcher  │ → │  analyst   │ → │   writer   │
+ └────────────┘   └────────────┘   └────────────┘
+  web_search       analyze_data      format_section
+  scrape_webpage   compare_data      write_report
+                   summarize_findings
 ```
 
-## 🧪 Testing Workflows
+1. The **supervisor** turns the request into a research brief.
+2. The **searcher** searches the web, reads the most relevant pages and returns findings with their sources.
+3. The **analyst** measures and compares those findings and turns them into structured insights.
+4. The **writer** turns the insights into a markdown report.
+5. The supervisor returns the report to the user.
 
-The included expense approval workflow has test scenarios:
+### VoltAgent's built-in multi-agent support
 
-### Scenario 1: Auto-approved (< $500)
-```json
-{
-  "employeeId": "EMP-123",
-  "amount": 250,
-  "category": "office-supplies",
-  "description": "New laptop mouse and keyboard"
-}
-```
+No orchestration code is written by hand. The supervisor is an ordinary `Agent` configured with two options:
 
-### Scenario 2: Manager approval required ($500-$5000)
-```json
-{
-  "employeeId": "EMP-456",
-  "amount": 3500,
-  "category": "travel",
-  "description": "Conference registration and hotel"
-}
-```
-
-### Scenario 3: Director approval required (> $5000)
-```json
-{
-  "employeeId": "EMP-789",
-  "amount": 15000,
-  "category": "equipment",
-  "description": "New server hardware"
-}
-```
-
-## 🐳 Docker Deployment
-
-Build and run with Docker:
-
-```bash
-# Build image
-docker build -t multi_agent .
-
-# Run container
-docker run -p 3141:3141 --env-file .env multi_agent
-
-# Or use docker-compose
-docker-compose up
-```
-
-## 🛠️ Development
-
-### Available Scripts
-
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm start` - Run production build
-- `npm run volt` - VoltAgent CLI tools
-
-### Adding Custom Tools
-
-Create new tools in `src/tools/`:
-
-```typescript
-import { createTool } from '@voltagent/core';
-import { z } from 'zod';
-
-export const myTool = createTool({
-  name: 'myTool',
-  description: 'Description of what this tool does',
-  input: z.object({
-    param: z.string(),
-  }),
-  output: z.string(),
-  handler: async ({ param }) => {
-    // Tool logic here
-    return `Result: ${param}`;
+```ts
+new Agent({
+  name: 'supervisor',
+  instructions: '...pipeline: research -> analysis -> writing...',
+  subAgents: [SearcherAgent, AnalystAgent, WriterAgent],
+  supervisorConfig: {
+    customGuidelines: ['Always follow the pipeline order...'],
   },
 });
 ```
 
-### Creating New Workflows
+- **`subAgents`**: VoltAgent gives the supervisor a built-in `delegate_task` tool that takes `task`, `targetAgents` and optional `context`. When the supervisor's model calls it, VoltAgent runs the named sub-agents and returns their output to the supervisor.
+- **`supervisorConfig`**: VoltAgent writes a system prompt describing the available sub-agents. `customGuidelines` adds extra rules to that prompt.
 
-Add workflows in `src/workflows/`:
+The order of the pipeline comes from the supervisor's `instructions` and `customGuidelines`. The order of the `subAgents` array has no effect.
 
-```typescript
-import { createWorkflowChain } from '@voltagent/core';
-import { z } from 'zod';
+## Agents and tools
 
-export const myWorkflow = createWorkflowChain({
-  id: "my-workflow",
-  name: "My Custom Workflow",
-  purpose: "Description of what this workflow does",
-  input: z.object({
-    data: z.string(),
-  }),
-  result: z.object({
-    output: z.string(),
-  }),
-})
-  .andThen({
-    id: "process-data",
-    execute: async ({ data }) => {
-      // Process the input
-      const processed = data.toUpperCase();
-      return { processed };
-    },
-  })
-  .andThen({
-    id: "final-step",
-    execute: async ({ data }) => {
-      // Final transformation
-      return { output: `Result: ${data.processed}` };
-    },
-  });
+| Agent | Role | Tools |
+|---|---|---|
+| `supervisor` | Coordinates the pipeline and checks the quality of each stage | `delegate_task` (added by VoltAgent) |
+| `searcher` | Gathers information from the web | `web_search`, `scrape_webpage` |
+| `analyst` | Extracts statistics, compares sources and summarizes findings | `analyze_data`, `compare_data`, `summarize_findings` |
+| `writer` | Produces the final report | `format_section`, `write_report` |
+
+About the tools:
+
+- `web_search` uses the free DuckDuckGo Instant Answer API. It needs no API key, but it returns short summary answers rather than full search results.
+- `scrape_webpage` removes the HTML from a page and returns the first 5,000 characters of text.
+- The analyst and writer tools are plain TypeScript and do not call a model. They count and format text, and the agent's model does the reasoning.
+
+## Project structure
+
+```
+src/
+├── index.ts                     # Entry point: registers agents with the VoltAgent server
+├── agents/
+│   ├── index.ts
+│   ├── supervisor-agent.ts
+│   ├── researcher-agent.ts      # exports SearcherAgent
+│   ├── analyst-agnet.ts
+│   └── writer-agent.ts
+└── tools/
+    ├── index.ts
+    ├── schemas/                 # Zod input schemas, one file per agent
+    │   ├── researcher.schema.ts
+    │   ├── analyst.schema.ts
+    │   └── writer.schema.ts
+    ├── web-search.tool.ts
+    ├── scrape-webpage.tool.ts
+    ├── analyze-data.tool.ts
+    ├── compare-data.tool.ts
+    ├── summarize-findings.tool.ts
+    ├── format-section.tool.ts
+    └── write-report.tool.ts
 ```
 
-## 📚 Resources
+## Getting started
 
-- **Documentation**: [voltagent.dev/docs](https://voltagent.dev/docs/)
-- **Examples**: [github.com/VoltAgent/voltagent/tree/main/examples](https://github.com/VoltAgent/voltagent/tree/main/examples)
-- **Discord**: [Join our community](https://s.voltagent.dev/discord)
-- **Blog**: [voltagent.dev/](https://voltagent.dev/blog/)
+### Prerequisites
 
-## 🤝 Contributing
+- Node.js 20.19 or later
+- A Google AI API key from [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Install
 
-## 📄 License
+```bash
+npm install
+```
 
-MIT License - see LICENSE file for details
+### Configure
 
----
+Create a `.env` file in the project root:
 
-<div align="center">
-  <p>Built with ❤️ using <a href="https://voltagent.dev">VoltAgent</a></p>
-</div>
+```env
+GOOGLE_GENERATIVE_AI_API_KEY=your-api-key-here
+
+# Optional: VoltOps tracing (https://console.voltagent.dev/tracing-setup)
+# VOLTAGENT_PUBLIC_KEY=
+# VOLTAGENT_SECRET_KEY=
+```
+
+All agents use `google/gemini-3.5-flash`. To use a different model, change the `model` field in each file in `src/agents/`.
+
+### Run
+
+```bash
+npm run dev        # development server with hot reload on http://localhost:3141
+```
+
+For production:
+
+```bash
+npm run build
+npm start
+```
+
+## Usage
+
+### From the VoltOps console
+
+1. Start the server with `npm run dev`.
+2. Open [console.voltagent.dev](https://console.voltagent.dev). It connects to `http://localhost:3141` automatically.
+3. Select the **supervisor** agent and send a request, for example:
+
+   > Research the current state of solid-state batteries for electric vehicles and write a report.
+
+The console shows each `delegate_task` call, each sub-agent run and each tool call as they happen. This is the easiest way to see the supervisor pattern at work.
+
+### Over HTTP
+
+```bash
+curl -X POST http://localhost:3141/agents/supervisor/text \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Research the current state of solid-state batteries for EVs and write a report."}'
+```
+
+Use `/agents/supervisor/stream` instead to stream the response.
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Starts the development server with hot reload |
+| `npm run build` | Builds the app into `dist/` |
+| `npm start` | Runs the built app |
+| `npm run typecheck` | Checks the TypeScript types |
+| `npm run lint` | Runs Biome |
+
+## Docker
+
+```bash
+docker build -t multi_agent .
+docker run -p 3141:3141 --env-file .env multi_agent
+```
+
+## Resources
+
+- [VoltAgent documentation](https://voltagent.dev/docs/)
+- [VoltAgent examples](https://github.com/VoltAgent/voltagent/tree/main/examples)

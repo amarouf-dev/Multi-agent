@@ -1,52 +1,35 @@
-import "dotenv/config";
-import { VoltAgent, VoltOpsClient, Agent, Memory, VoltAgentObservability } from "@voltagent/core";
-import { LibSQLMemoryAdapter, LibSQLObservabilityAdapter } from "@voltagent/libsql";
-import { createPinoLogger } from "@voltagent/logger";
-import { elysiaServer } from "@voltagent/server-elysia";
-import { expenseApprovalWorkflow } from "./workflows";
-import { weatherTool } from "./tools";
+import 'dotenv/config';
+import { VoltAgent, VoltAgentObservability, VoltOpsClient } from '@voltagent/core';
+import { LibSQLObservabilityAdapter } from '@voltagent/libsql';
+import { createPinoLogger } from '@voltagent/logger';
+import { elysiaServer } from '@voltagent/server-elysia';
+import { AnalystAgent, SearcherAgent, SupervisorAgent, WriterAgent } from './agents';
 
-// Create a logger instance
 const logger = createPinoLogger({
-  name: "multi_agent",
-  level: "info",
+  name: 'multi_agent',
+  level: 'info',
 });
 
-// Configure persistent memory (LibSQL / SQLite)
-const memory = new Memory({
-  storage: new LibSQLMemoryAdapter({
-    url: "file:./.voltagent/memory.db",
-    logger: logger.child({ component: "libsql" }),
-  }),
-});
-
-// Configure persistent observability (LibSQL / SQLite)
 const observability = new VoltAgentObservability({
   storage: new LibSQLObservabilityAdapter({
-    url: "file:./.voltagent/observability.db",
+    url: 'file:./.voltagent/observability.db',
   }),
 });
 
-const agent = new Agent({
-  name: "multi_agent",
-  instructions: "A helpful assistant that can check weather and help with various tasks",
-  model: "google/gemini-2.0-flash",
-  tools: [weatherTool],
-  memory,
-});
+const { VOLTAGENT_PUBLIC_KEY, VOLTAGENT_SECRET_KEY } = process.env;
 
 new VoltAgent({
   agents: {
-    agent,
-  },
-  workflows: {
-    expenseApprovalWorkflow,
+    supervisor: SupervisorAgent,
+    searcher: SearcherAgent,
+    analyst: AnalystAgent,
+    writer: WriterAgent,
   },
   server: elysiaServer(),
   logger,
   observability,
-  voltOpsClient: new VoltOpsClient({
-    publicKey: process.env.VOLTAGENT_PUBLIC_KEY || "",
-    secretKey: process.env.VOLTAGENT_SECRET_KEY || "",
-  }),
+  voltOpsClient:
+    VOLTAGENT_PUBLIC_KEY && VOLTAGENT_SECRET_KEY
+      ? new VoltOpsClient({ publicKey: VOLTAGENT_PUBLIC_KEY, secretKey: VOLTAGENT_SECRET_KEY })
+      : undefined,
 });
